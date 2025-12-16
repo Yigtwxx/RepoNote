@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # --- Databases & Infrastructure ---
+  postgres:
+    image: postgres:15-alpine
+    container_name: reponote_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: RepoNote
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U user -d RepoNote" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    container_name: reponote_minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  # --- Microservices ---
+  auth_service:
+    build: ./services/auth_service
+    container_name: reponote_auth
+    restart: always
+    ports:
+      - "8001:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/RepoNote
+      - SECRET_KEY=supersecretkey
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  document_service:
+    build: ./services/document_service
+    container_name: reponote_document
+    restart: always
+    ports:
+      - "8002:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/RepoNote
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  versioning_service:
+    build: ./services/versioning_service
+    container_name: reponote_versioning
+    restart: always
+    ports:
+      - "8003:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/RepoNote
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  comment_service:
+    build: ./services/comment_service
+    container_name: reponote_comment
+    restart: always
+    ports:
+      - "8004:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@postgres:5432/RepoNote
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  storage_service:
+    build: ./services/storage_service
+    container_name: reponote_storage
+    restart: always
+    ports:
+      - "8005:8000"
+    environment:
+      - MINIO_ENDPOINT=minio:9000
+      - MINIO_ACCESS_KEY=minioadmin
+      - MINIO_SECRET_KEY=minioadmin
+      - BUCKET_NAME=reponote-files
+    depends_on:
+      - minio
+
+  frontend:
+    build: ./frontend
+    container_name: reponote_frontend
+    restart: always
+    ports:
+      - "3000:80" # Exposed on 3000 as per user screenshot/defaults, though my previous plan said 7860. I'll stick to 3000 for now to match user's current valid state.
+    depends_on:
+      - auth_service
+      - document_service
+
+volumes:
+  postgres_data:
+  minio_data:
