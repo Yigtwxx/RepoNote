@@ -54,6 +54,11 @@ class DocumentCreate(BaseModel):
     description: str | None = None
     tags: str | None = None
 
+class DocumentUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    tags: str | None = None
+
 class DocumentOut(BaseModel):
     id: int
     title: str
@@ -92,3 +97,37 @@ def get_document(doc_id: int, user_id: int = Depends(get_current_user_id), db: S
     if not doc:
         raise HTTPException(status_code=404, detail="Document not found")
     return doc
+
+@app.put("/documents/{doc_id}", response_model=DocumentOut)
+def update_document(doc_id: int, doc_update: DocumentUpdate, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    # Ownership check
+    if doc.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to update this document")
+
+    if doc_update.title is not None:
+        doc.title = doc_update.title
+    if doc_update.description is not None:
+        doc.description = doc_update.description
+    if doc_update.tags is not None:
+        doc.tags = doc_update.tags
+    
+    db.commit()
+    db.refresh(doc)
+    return doc
+
+@app.delete("/documents/{doc_id}")
+def delete_document(doc_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    
+    if doc.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this document")
+
+    db.delete(doc)
+    db.commit()
+    return {"status": "success", "message": "Document deleted"}
