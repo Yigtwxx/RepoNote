@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import api, { DOC_URL } from '../services/api';
-import { FileText, Clock, Search, Plus, Cpu, UploadCloud } from 'lucide-react';
+import { FileText, Clock, Search, Plus, UploadCloud, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import GlassCard from '../components/ui/GlassCard';
 import GlowingButton from '../components/ui/GlowingButton';
 import NeonInput from '../components/ui/NeonInput';
-import NeuralBackground from '../components/NeuralBackground';
+import ParticleNetwork from '../components/ParticleNetwork';
 
 interface Document {
     id: number;
@@ -16,6 +16,21 @@ interface Document {
     tags: string;
     owner_id: number;
 }
+
+const getTagStyles = (tag: string) => {
+    const t = tag?.toUpperCase() || '';
+    switch (t) {
+        case 'PDF': return 'bg-red-500/10 border-red-500/20 text-red-300';
+        case 'DOC': return 'bg-blue-500/10 border-blue-500/20 text-blue-300';
+        case 'PPT': return 'bg-orange-500/10 border-orange-500/20 text-orange-300';
+        case 'XLS': return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-300';
+        case 'TXT': return 'bg-gray-500/10 border-gray-500/20 text-gray-300';
+        case 'IMG': return 'bg-pink-500/10 border-pink-500/20 text-pink-300';
+        case 'CODE': return 'bg-yellow-500/10 border-yellow-500/20 text-yellow-300';
+        case 'ARCHIVE': return 'bg-cyan-500/10 border-cyan-500/20 text-cyan-300';
+        default: return 'bg-purple-500/10 border-purple-500/20 text-purple-300';
+    }
+};
 
 const Dashboard = () => {
     const [documents, setDocuments] = useState<Document[]>([]);
@@ -42,14 +57,25 @@ const Dashboard = () => {
         doc.tags?.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const handleDelete = async (e: React.MouseEvent, id: number) => {
+        e.preventDefault(); // Prevent navigation
+        if (!window.confirm("Are you sure you want to delete this node? This action is irreversible.")) return;
+
+        try {
+            await api.delete(`${DOC_URL}/documents/${id}`);
+            setDocuments(documents.filter(doc => doc.id !== id));
+        } catch (err) {
+            console.error(err);
+            alert("Failed to delete document.");
+        }
+    };
+
     return (
         <div className="min-h-screen relative flex flex-col items-center justify-center p-6 sm:p-12 overflow-hidden">
 
             {/* --- Neural Network Background --- */}
-            <div className="fixed inset-0 z-0">
-                <NeuralBackground documents={documents} />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#030014] via-transparent to-[#030014]/50 pointer-events-none" />
-            </div>
+            <ParticleNetwork />
+            <div className="fixed inset-0 z-0 bg-gradient-to-t from-[#030014] via-transparent to-[#030014]/50 pointer-events-none" />
 
             <div className="relative z-10 w-full max-w-5xl flex flex-col items-center gap-10">
 
@@ -60,10 +86,7 @@ const Dashboard = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.6, ease: "easeOut" }}
                     >
-                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono text-cyan-400 mb-4 backdrop-blur-md">
-                            <Cpu size={14} />
-                            <span>v2.0 Neural Interface</span>
-                        </div>
+
                         <h1 className="text-5xl sm:text-7xl font-bold tracking-tight mb-2">
                             <span className="text-white drop-shadow-2xl">Neural</span>
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-cyan-400"> Archives</span>
@@ -95,8 +118,7 @@ const Dashboard = () => {
                 {/* --- Controls & Legend --- */}
                 <div className="w-full max-w-5xl flex items-center justify-between px-2">
                     <div className="text-xs text-gray-500 font-mono hidden sm:flex items-center gap-4">
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-cyan-400" /> Document</span>
-                        <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-purple-500" /> Link</span>
+                        {/* Legend Removed */}
                     </div>
 
                     <Link to="/upload">
@@ -128,9 +150,7 @@ const Dashboard = () => {
                             </div>
                             <h3 className="text-xl font-medium text-white mb-2">Repository Empty</h3>
                             <p className="text-gray-400 mb-8 max-w-sm text-center">Initialize your first neural node to begin mapping your knowledge graph.</p>
-                            <Link to="/upload">
-                                <GlowingButton variant="secondary">Initialize System</GlowingButton>
-                            </Link>
+                            {/* Initialize Button Removed */}
                         </motion.div>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -155,7 +175,7 @@ const Dashboard = () => {
                                                         <FileText size={20} />
                                                     </div>
                                                     {doc.tags && (
-                                                        <span className="px-2.5 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-[10px] font-bold text-purple-300 tracking-wider uppercase">
+                                                        <span className={`px-2.5 py-1 rounded-full border text-[10px] font-bold tracking-wider uppercase ${getTagStyles(doc.tags.split(',')[0])}`}>
                                                             {doc.tags.split(',')[0]}
                                                         </span>
                                                     )}
@@ -169,9 +189,18 @@ const Dashboard = () => {
                                                     {doc.description || "No description provided."}
                                                 </p>
 
-                                                <div className="mt-auto flex items-center gap-2 text-xs text-gray-500 font-mono pt-4 border-t border-white/5">
-                                                    <Clock size={12} />
-                                                    <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                                <div className="mt-auto flex items-center justify-between pt-4 border-t border-white/5">
+                                                    <div className="flex items-center gap-2 text-xs text-gray-500 font-mono">
+                                                        <Clock size={12} />
+                                                        <span>{new Date(doc.created_at).toLocaleDateString()}</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={(e) => handleDelete(e, doc.id)}
+                                                        className="p-1.5 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+                                                        title="Delete Node"
+                                                    >
+                                                        <Trash2 size={14} />
+                                                    </button>
                                                 </div>
                                             </GlassCard>
                                         </Link>
