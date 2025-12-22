@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LogOut, Plus } from 'lucide-react';
+import ParticleNetwork from './ParticleNetwork';
 
 const Layout = ({ children }: { children: React.ReactNode }) => {
     const navigate = useNavigate();
@@ -42,6 +43,7 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
                 <div className="nebula-glow glow-purple"></div>
                 <div className="nebula-glow glow-cyan"></div>
             </div>
+            <ParticleNetwork />
         </div>
     );
 };
