@@ -39,23 +39,23 @@ RepoNote follows a modern microservices pattern proxied by Nginx.
 
 ```mermaid
 graph TD
-    Client[Client (React SPA)] -->|HTTP/REST| Gateway[Nginx Gateway]
+    Client["Client (React SPA)"] -->|HTTP/REST| Gateway["Nginx Gateway"]
     
     subgraph "Microservices Layer"
-        Gateway -->|/api/auth| AuthService[🔐 Auth Service]
-        Gateway -->|/api/document| DocService[📄 Document Service]
-        Gateway -->|/api/versioning| VerService[⏱️ Versioning Service]
-        Gateway -->|/api/comment| CommentService[💬 Comment Service]
-        Gateway -->|/api/storage| StorageService[📦 Storage Service]
+        Gateway -->|/api/auth| AuthService["🔐 Auth Service"]
+        Gateway -->|/api/document| DocService["📄 Document Service"]
+        Gateway -->|/api/versioning| VerService["⏱️ Versioning Service"]
+        Gateway -->|/api/comment| CommentService["💬 Comment Service"]
+        Gateway -->|/api/storage| StorageService["📦 Storage Service"]
     end
 
     subgraph "Data Layer"
-        AuthService --> Postgres[(PostgreSQL)]
+        AuthService --> Postgres[("PostgreSQL")]
         DocService --> Postgres
         VerService --> Postgres
         CommentService --> Postgres
         
-        StorageService --> MinIO[(MinIO Object Storage)]
+        StorageService --> MinIO[("MinIO Object Storage")]
         VerService -.->|Metadata| MinIO
     end
 ```
