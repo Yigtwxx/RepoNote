@@ -136,7 +136,14 @@ async def create_version(
     }
 
 @app.get("/versions/{document_id}", response_model=list[VersionOut])
-def list_versions(document_id: int, db: Session = Depends(get_db)):
+@app.get("/versions/{document_id}", response_model=list[VersionOut])
+def list_versions(document_id: int, user_id: int = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    doc = db.query(Document).filter(Document.id == document_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    if doc.owner_id != user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view versions of this document")
+
     versions = db.query(Version).filter(Version.document_id == document_id).all()
     # Populate download URL
     return [
