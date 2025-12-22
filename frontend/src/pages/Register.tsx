@@ -23,10 +23,27 @@ const Register = () => {
             alert("Registration Successful! Redirecting to login...");
             navigate('/login');
         } catch (err: any) {
-            console.error("Registration error:", err);
-            const errorMsg = err.response?.data?.detail || 'Registration failed';
-            setError(errorMsg);
-            alert(`Registration Failed: ${errorMsg}`);
+            console.error("Registration Details:", err);
+
+            let message = 'Registration Failed';
+            if (err.response) {
+                // Server responded with a status code
+                message += `: ${err.response.status} ${err.response.statusText}`;
+                if (err.response.data && err.response.data.detail) {
+                    message += ` - ${err.response.data.detail}`;
+                } else {
+                    message += ` - ${JSON.stringify(err.response.data)}`;
+                }
+            } else if (err.request) {
+                // Request made but no response received
+                message += ': No response received from server. Check network or server status.';
+            } else {
+                // Error setting up request
+                message += `: ${err.message}`;
+            }
+
+            setError(message);
+            alert(`${message}\n\nURL Tried: ${AUTH_URL}/register`);
         }
     };
 
@@ -69,7 +86,7 @@ const Register = () => {
                         />
                     </div>
 
-                    <button type="submit" className="w-full py-3 rounded-lg bg-secondary hover:bg-secondary/90 text-black font-semibold transition-colors mt-2">
+                    <button type="submit" className="w-full py-3 rounded-lg bg-secondary hover:bg-secondary/80 text-white font-bold transition-all mt-2 shadow-[0_0_15px_rgba(0,246,255,0.3)] hover:shadow-[0_0_25px_rgba(0,246,255,0.5)] hover:scale-[1.02] active:scale-[0.98]">
                         Sign Up
                     </button>
                 </form>
