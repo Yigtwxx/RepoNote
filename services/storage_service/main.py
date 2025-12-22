@@ -1,5 +1,5 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException, Depends, Header
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from minio import Minio
 import os
 import uuid
@@ -57,23 +57,44 @@ async def upload_file(file: UploadFile = File(...), user_id: int = Depends(get_c
         file_ext = file.filename.split(".")[-1]
         object_name = f"{uuid.uuid4()}.{file_ext}"
         
-        # Upload
+        # Upload with content type
         client.put_object(
             BUCKET_NAME,
             object_name,
             file.file,
             length=-1,
-            part_size=10*1024*1024
+            part_size=10*1024*1024,
+            content_type=file.content_type
         )
         return {"path": object_name}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/download/{object_name}")
-def download_file(object_name: str, user_id: int = Depends(get_current_user_id)):
+def download_file(object_name: str):
     try:
-        # Get presigned URL
-        url = client.presigned_get_object(BUCKET_NAME, object_name)
-        return {"url": url}
+        # Get file stats
+        try:
+            stat = client.stat_object(BUCKET_NAME, object_name)
+            content_type = stat.content_type
+        except:
+            content_type = None
+
+        # Fallback MIME type detection
+        if not content_type or content_type == "application/octet-stream":
+            import mimetypes
+            content_type, _ = mimetypes.guess_type(object_name)
+        
+        # Default if still unknown
+        if not content_type:
+            content_type = "application/octet-stream"
+
+        # Stream file
+        response = client.get_object(BUCKET_NAME, object_name)
+        return StreamingResponse(
+            response, 
+            media_type=content_type,
+            headers={"Content-Disposition": f"inline; filename={object_name}"}
+        )
     except Exception as e:
-        raise HTTPException(status_code=404, detail="File not found")
+        raise HTTPException(status_code=404, detail=f"File not found: {str(e)}")
