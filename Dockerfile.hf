@@ -1,0 +1,57 @@
+FROM ubuntu:22.04
+
+# Prevent interactive prompts
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 1. Install Dependencies
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    curl \
+    postgresql-14 \
+    postgresql-client-14 \
+    nginx \
+    wget \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs
+
+# Install MinIO
+RUN wget https://dl.min.io/server/minio/release/linux-amd64/minio \
+    && chmod +x minio \
+    && mv minio /usr/local/bin/
+
+# Setup App Directory
+WORKDIR /app
+
+# 2. Copy Source Code
+COPY . /app
+
+# 3. Build Frontend
+WORKDIR /app/frontend
+# Set environment variables for build time to point to Nginx proxy
+ENV VITE_AUTH_URL=/api/auth
+ENV VITE_DOC_URL=/api/document
+ENV VITE_VER_URL=/api/versioning
+ENV VITE_COM_URL=/api/comment
+ENV VITE_STO_URL=/api/storage
+
+RUN npm install
+RUN npm run build
+
+# 4. Install Backend Dependencies
+WORKDIR /app
+# Install all service requirements
+RUN pip3 install "argon2-cffi" fastapi uvicorn sqlalchemy psycopg2-binary pint pydantic python-multipart requests "python-jose[cryptography]" "passlib[argon2]" minio
+
+# 5. Permissions
+RUN chmod +x /app/start_hf.sh
+
+# 6. Expose Port (HF Spaces uses 7860)
+EXPOSE 7860
+
+# 7. Start
+CMD ["/app/start_hf.sh"]
